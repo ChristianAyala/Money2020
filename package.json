@@ -1,0 +1,10 @@
+{
+    "name": "Money2020",
+    "description": "Money2020",
+    "version": "0.0.1",
+    "private": true,
+    "dependencies": {
+        "express": "4.9.7",
+        "firebase": "latest"
+    }
+}
