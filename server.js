@@ -38,30 +38,35 @@ var server = app.listen(3000, function() {
 
 function getGuid(params, callback) {
     var card_hash = params.card_hash;
-    var user_fullname = params.user_fullname;
     var userCollection = ref.child("users");
     var GUID = null;
     console.log("Retrieving guid");
 
     ref.once("value", function(userList) {
         if (userList.val() == null) {
-            GUID = storeNewUser(card_hash, userCollection);
+            GUID = storeNewUser(params, userCollection);
             userList = {};
             userList[GUID] = {card_hash: [card_hash]};
         } else {
             userList = userList.val().users;
         }
-        _.forOwn(userList, function(userData, guid) {
-            if (userData.card_hash.indexOf(card_hash) > -1) {
-                console.log ("Found user hash: " + guid);
-                GUID = guid;
-                if (user_fullname != null && !userData.user_fullname) {
-                    updateUserName(GUID, user_fullname, userCollection);
-                }
-                addIPAddress(GUID, params.ip, userData, userCollection);
+
+        GUID = scanForCardHash(userList, params);
+        if (GUID) {
+            callback(GUID);
+        } else if (params.user_fullname) {
+            GUID = scanForNameAndIP(userList, params);
+            if (GUID) {
+                callback(GUID);
+            } else {
+                GUID = storeNewUser(params, userCollection);
                 callback(GUID);
             }
-        });
+        } else {
+            GUID = storeNewUser(params, userCollection);
+            callback(GUID);
+        }
+
     });
 
 
@@ -88,10 +93,54 @@ function getGuid(params, callback) {
     });*/
 }
 
-function storeNewUser(card_hash, userCollection) {
+function scanForCardHash(userList, params) {
+    var userCollection = ref.child("users");
+    var GUID = null;
+    var card_hash = params.card_hash;
+    _.forOwn(userList, function(userData, guid) {
+        if (userData.card_hash.indexOf(card_hash) > -1) {
+            foundUser = true;
+            console.log ("Found user hash: " + guid);
+            GUID = guid;
+            if (params.user_fullname != null && !userData.user_fullname) {
+                updateUserName(GUID, params.user_fullname, userCollection);
+            }
+            addIPAddress(GUID, params.ip, userData, userCollection);
+        }
+    });
+
+    return GUID;
+}
+
+function scanForNameAndIP(userList, params) {
+    var userCollection = ref.child("users");
+    var GUID = null;
+    var user_fullname = params.user_fullname;
+
+    _.forOwn(userList, function(userData, guid) {
+        if (userData.ipAddresses.indexOf(params.ip) > -1 && userData.user_fullname == user_fullname) {
+            console.log("Found a similar user based on IP/Name");
+            GUID = guid;
+
+            var card_hashList = userData.card_hash;
+            card_hashList.push(params.card_hash);
+            userCollection.child(GUID).update({card_hash: card_hashList});
+        }
+    });
+
+    return GUID;
+}
+
+function storeNewUser(params, userCollection) {
     var guid = require("node-uuid").v1();
     console.log("Storing new user: " + guid);
-    userCollection.child(guid).update({"card_hash": [card_hash]});
+    var data = {};
+    data["card_hash"] = [params.card_hash];
+    data["ipAddresses"] = [params.ip];
+    if (params.user_fullname) {
+        data["user_fullname"] = params.user_fullname;
+    }
+    userCollection.child(guid).update(data);
     return guid;
 }
 
@@ -108,7 +157,9 @@ function addIPAddress(guid, ip, userData, userCollection) {
         console.log("New IP found, adding");
         ipAddresses.push(ip);
         userCollection.child(guid).update({ipAddresses: ipAddresses});
+        return true;
     }
+    return false;
 }
 
 function makeFeedzaiRequest(transactionDetails, callback) {
