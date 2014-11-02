@@ -1,10 +1,14 @@
 {
-    "name": "Money2020",
-    "description": "Money2020",
-    "version": "0.0.1",
-    "private": true,
-    "dependencies": {
-        "express": "4.9.7",
-        "firebase": "latest"
-    }
+  "name": "Money2020",
+  "description": "Money2020",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "body-parser": "^1.9.2",
+    "express": "4.9.7",
+    "firebase": "latest",
+    "node-uuid": "^1.4.1",
+    "request": "^2.47.0",
+    "request-json": "^0.5.0"
+  }
 }
